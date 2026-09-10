@@ -1,0 +1,30 @@
+name: Propuesta de mejora
+description: Una idea para bajar el error del modelo (variable, dato, método, mecanismo del mercado)
+title: "[Propuesta] "
+labels: ["propuesta"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Qué cambiarías
+      description: La variable, el dato, el método o la corrección que propones.
+    validations:
+      required: true
+  - type: textarea
+    id: porque
+    attributes:
+      label: Por qué crees que ayudaría
+      description: Si hay un mecanismo del mercado detrás (una regla de OMIE, cómo oferta una tecnología, una norma del operador), cuéntalo. Enlaces a documentación o regulación, bienvenidos.
+    validations:
+      required: true
+  - type: textarea
+    id: dato
+    attributes:
+      label: Qué dato haría falta y si se conoce antes del cierre
+      description: La subasta cierra a las 12:00 del día anterior. Una variable que no se conoce a esa hora no se puede usar.
+  - type: textarea
+    id: medida
+    attributes:
+      label: Si ya lo has medido
+      description: Pega la salida de `python -m scripts.comparar tu_prediccion.csv`.
+      render: text

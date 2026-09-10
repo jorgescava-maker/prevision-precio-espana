@@ -1,0 +1,17 @@
+# Python 3.11. Versiones exactas con las que se obtuvieron las cifras publicadas
+# (los árboles de LightGBM y las redes de scikit-learn pueden cambiar
+# ligeramente de una versión a otra).
+duckdb==1.5.5
+pandas==3.0.5
+numpy==2.4.6
+pyarrow==25.0.1
+requests==2.34.2
+tzdata==2026.3
+holidays==0.103
+lightgbm==4.7.0
+scikit-learn==1.9.0
+joblib==1.5.3
+scipy==1.17.1
+statsmodels==0.15.0
+matplotlib==3.11.1
+shap==0.51.0

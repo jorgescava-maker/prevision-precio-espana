@@ -1,0 +1,23 @@
+# Secretos y entorno
+.env
+.venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Bases de datos DuckDB: se construyen con etl/backfill_*.py y se mantienen
+# con etl/daily_update_espana.py. No se versionan (tamaño, y las condiciones de
+# reutilización de cada fuente — ver DATOS.md).
+data/*.duckdb
+data/*.duckdb.wal
+
+# Registros de ejecución
+logs/
+
+# Salidas intermedias de los scripts de studies/ (se regeneran). Lo que se
+# publica vive en previsiones/ y resultados/.
+studies/*/output/
+
+# Datasets exportados: se publican como adjuntos de una release, no en git.
+dist/
