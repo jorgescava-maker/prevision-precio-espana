@@ -279,6 +279,13 @@ def build_live_dataset(target_date: date, log) -> pd.DataFrame:
     log("Recalculando interconexiones ES-FR/ES-PT...")
     combined = _add_interconnection_features(combined, log)
 
+    # El día de mercado es LOCAL, no UTC. Este script reconstruye los lags, las
+    # EMAs y el calendario por su cuenta, así que arrastra la misma fuga que
+    # tenía `build_dataset` (93,4% de las filas) si no se corrige aquí también.
+    # Mismo módulo que la cadena de entrenamiento, por la misma razón de abajo.
+    from studies.precio_da_mejor_modelo.dia_mercado import aplicar as _dia_mercado
+    combined = _dia_mercado(combined, log)
+
     # Las diez de la revisión de 2026-09-13, con el MISMO módulo que usa
     # `build_dataset.build()`: el camino en vivo y el walk-forward tienen que
     # construir exactamente lo mismo, o lo que se sirve no es lo que se validó.

@@ -15,8 +15,8 @@ la subasta):
 
 | | MAE (EUR/MWh) |
 |---|---:|
-| Por periodo de casación | **9,42** |
-| Media del día (días completos de 15 minutos) | **5,71** |
+| Por periodo de casación | **10,10** |
+| Media del día (días completos de 15 minutos) | **6,58** |
 | Referencia ingenua (mismo periodo del día anterior) | 18,14 |
 
 37.294 periodos, del 1 de abril de 2025 al 13 de septiembre de 2026. La
@@ -42,9 +42,26 @@ tenía delante. Dos (`reserve_margin_mw`, el margen de reserva del sistema, y
 otras ocho las añade
 [`features_v3.py`](studies/precio_da_mejor_modelo/features_v3.py): el componente
 estacional de largo plazo, la variación de las previsiones respecto a ayer, y la
-tensión del sistema francés. **Sobre los mismos 37.006 periodos, el error pasa
-de 10,03 a 9,39** (IC95 [−0,69, −0,60]; mejora el 67,6 % de los días; la
-correlación sube de 0,966 a 0,971).
+tensión del sistema francés. **Sobre los mismos periodos, el error baja 0,65** (IC95
+[−0,69, −0,60]; mejora el 67,6 % de los días).
+
+**Y una fuga encontrada al comprobar ese resultado (2026-09-13).** Al comparar
+esta implementación contra la privada del mismo modelo salió una diferencia de
+0,49 EUR/MWh a favor de esta, que es demasiado para dos versiones del mismo
+diseño. La causa: el día de mercado se calculaba con la fecha **UTC**, y el
+mercado español opera en CET/CEST. En el **93,4 %** de las filas
+`price_boundary_prev_day` entregaba un precio del propio día de mercado — fijado
+en la misma subasta que se predecía — y el calendario entero iba en UTC.
+Corregido en [`dia_mercado.py`](studies/precio_da_mejor_modelo/dia_mercado.py),
+aplicado tanto al backtest como a la previsión diaria. **La fuga valía 0,69
+EUR/MWh**; medida de forma independiente en la implementación privada dio 0,68.
+Las cifras de arriba son las corregidas.
+
+**Las previsiones diarias anteriores al 2026-09-13** que hay en
+[`previsiones/diarias/`](previsiones/diarias/) se generaron con esa fuga: el
+script en vivo reconstruye los desfases y el calendario por su cuenta y
+arrastraba el mismo fallo. Se dejan tal cual, con su commit y su hora, porque
+borrarlas sería peor; a partir del 2026-09-13 son limpias.
 
 Por qué funcionan, que es lo mismo en los tres bloques: un modelo de árboles
 necesita muchísimos cortes para aproximar una suma de nueve columnas o una
@@ -167,8 +184,8 @@ the Spanish day-ahead market. Forecasts are committed here (the commit time
 proves they were made ex ante) and scored automatically against the real
 price in [`resultados/`](resultados/README.md).
 
-Backtest (monthly walk-forward, ex-ante information only): **MAE 9.42 EUR/MWh
-per period, 5.71 on the daily average** (naive same-period-yesterday: 18.14),
+Backtest (monthly walk-forward, ex-ante information only): **MAE 10.10 EUR/MWh
+per period, 6.58 on the daily average** (naive same-period-yesterday: 18.14),
 over 37,294 periods from 1 April 2025 to 13 September 2026. While preparing
 this repository we found and fixed a leak: the reservoir water value was
 estimated on the full history; it is now re-estimated each month with past

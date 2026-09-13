@@ -666,6 +666,15 @@ def build() -> pd.DataFrame:
 
     df = df.sort_values("period_start_utc").reset_index(drop=True)
 
+    # EL DÍA DE MERCADO ES LOCAL, NO UTC. Corrige una fuga que afectaba al
+    # 93,4% de las filas (`price_boundary_prev_day` entregaba un precio del
+    # propio día de mercado) y además pone el calendario en hora local. En el
+    # modelo privado equivalente esto vale +0,684 EUR/MWh: las cifras SIN esta
+    # corrección son optimistas. Ver el docstring de `dia_mercado`.
+    log("Pasando frontera, EMAs y calendario al DÍA DE MERCADO local (dia_mercado)...")
+    from studies.precio_da_mejor_modelo.dia_mercado import aplicar as _dia_mercado
+    df = _dia_mercado(df, log)
+
     # Las diez de la revisión de 2026-09-13. Ninguna añade un dato nuevo: son
     # combinaciones y transformaciones de series que ya están en el dataset
     # (ver el docstring de `features_v3`). Va al final a propósito, porque el
