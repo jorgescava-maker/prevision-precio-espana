@@ -15,11 +15,11 @@ la subasta):
 
 | | MAE (EUR/MWh) |
 |---|---:|
-| Por periodo de casación | **10,03** |
-| Media del día (días completos de 15 minutos) | **6,27** |
-| Referencia ingenua (mismo periodo del día anterior) | 18,17 |
+| Por periodo de casación | **9,42** |
+| Media del día (días completos de 15 minutos) | **5,71** |
+| Referencia ingenua (mismo periodo del día anterior) | 18,14 |
 
-37.006 periodos, del 1 de abril de 2025 al 10 de septiembre de 2026. La
+37.294 periodos, del 1 de abril de 2025 al 13 de septiembre de 2026. La
 predicción periodo a periodo está en
 [`previsiones/walkforward/espana_referencia.csv`](previsiones/walkforward/espana_referencia.csv).
 
@@ -31,6 +31,25 @@ publicadas ([`agua_causal.py`](studies/precio_da_conjunto/agua_causal.py)). En
 los mismos periodos, el error pasa de 9,97 a 10,03: la fuga valía 0,07 EUR/MWh.
 La cifra de arriba es la corregida. La previsión diaria no tenía el problema,
 porque en ella la superficie se estima con los datos disponibles ese día.
+
+**Diez variables, ningún dato nuevo (2026-09-13).** Una auditoría del dataset
+contra lo que el modelo consumía, más una revisión de la literatura de previsión
+de precio eléctrico centrada en variables de entrada y no en métodos, dejaron
+diez que bajan el error de forma clara — y **ninguna añade un dato que no
+estuviera ya ahí**: son combinaciones y transformaciones de series que el modelo
+tenía delante. Dos (`reserve_margin_mw`, el margen de reserva del sistema, y
+`ratio_renovable_periodo`) ya se construían y nunca se habían conectado. Las
+otras ocho las añade
+[`features_v3.py`](studies/precio_da_mejor_modelo/features_v3.py): el componente
+estacional de largo plazo, la variación de las previsiones respecto a ayer, y la
+tensión del sistema francés. **Sobre los mismos 37.006 periodos, el error pasa
+de 10,03 a 9,39** (IC95 [−0,69, −0,60]; mejora el 67,6 % de los días; la
+correlación sube de 0,966 a 0,971).
+
+Por qué funcionan, que es lo mismo en los tres bloques: un modelo de árboles
+necesita muchísimos cortes para aproximar una suma de nueve columnas o una
+diferencia entre dos, así que dárselas hechas le ahorra un trabajo que hacía
+mal. No es información nueva, es estructura.
 
 **En vivo:** [`resultados/`](resultados/README.md) se actualiza cada día con el
 error de las previsiones publicadas, y [`previsiones/diarias/`](previsiones/diarias/)
@@ -148,9 +167,9 @@ the Spanish day-ahead market. Forecasts are committed here (the commit time
 proves they were made ex ante) and scored automatically against the real
 price in [`resultados/`](resultados/README.md).
 
-Backtest (monthly walk-forward, ex-ante information only): **MAE 10.03 EUR/MWh
-per period, 6.27 on the daily average** (naive same-period-yesterday: 18.17),
-over 37,006 periods from 1 April 2025 to 10 September 2026. While preparing
+Backtest (monthly walk-forward, ex-ante information only): **MAE 9.42 EUR/MWh
+per period, 5.71 on the daily average** (naive same-period-yesterday: 18.14),
+over 37,294 periods from 1 April 2025 to 13 September 2026. While preparing
 this repository we found and fixed a leak: the reservoir water value was
 estimated on the full history; it is now re-estimated each month with past
 weeks only (`agua_causal.py`), which costs 0.07 EUR/MWh.

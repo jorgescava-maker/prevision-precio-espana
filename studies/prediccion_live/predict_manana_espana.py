@@ -279,6 +279,12 @@ def build_live_dataset(target_date: date, log) -> pd.DataFrame:
     log("Recalculando interconexiones ES-FR/ES-PT...")
     combined = _add_interconnection_features(combined, log)
 
+    # Las diez de la revisión de 2026-09-13, con el MISMO módulo que usa
+    # `build_dataset.build()`: el camino en vivo y el walk-forward tienen que
+    # construir exactamente lo mismo, o lo que se sirve no es lo que se validó.
+    from studies.precio_da_mejor_modelo.features_v3 import anadir as _anadir_v3
+    combined, _ = _anadir_v3(combined, log)
+
     return combined
 
 

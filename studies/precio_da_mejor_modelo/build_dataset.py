@@ -666,6 +666,14 @@ def build() -> pd.DataFrame:
 
     df = df.sort_values("period_start_utc").reset_index(drop=True)
 
+    # Las diez de la revisión de 2026-09-13. Ninguna añade un dato nuevo: son
+    # combinaciones y transformaciones de series que ya están en el dataset
+    # (ver el docstring de `features_v3`). Va al final a propósito, porque el
+    # componente de largo plazo necesita la serie de precio ya montada.
+    log("Añadiendo LTSC, variación de previsiones y tensión francesa (features_v3)...")
+    from studies.precio_da_mejor_modelo.features_v3 import anadir as _anadir_v3
+    df, _ = _anadir_v3(df, log)
+
     summary_path = OUTPUT_DIR / "build_summary.txt"
     OUTPUT_DIR.mkdir(exist_ok=True)
     summary_path.write_text("\n".join(lines), encoding="utf-8")

@@ -35,6 +35,14 @@ SPAIN_ONLY = [
     "cogeneracion_resto_clim", "solar_termica_clim", "termica_renovable_clim",
     "price_lag_24h_fr", "price_lag_168h_fr", "price_lag_24h_pt", "price_lag_168h_pt",
     "ntc_es_fr_mw", "nuclear_capacity_fr_avail_mw",
+    # --- revisión del 2026-09-13: diez variables, ningún dato nuevo ---
+    # `reserve_margin_mw` y `ratio_renovable_periodo` ya se construían en
+    # `build_dataset.py` y nunca se habían conectado aquí. Las otras ocho las
+    # construye `precio_da_mejor_modelo/features_v3.py`, que documenta de dónde
+    # sale cada una y por qué es D-1-segura.
+    "reserve_margin_mw", "ratio_renovable_periodo", "tension_fr",
+    "ltsc_90d", "ltsc_365d", "ltsc_pendiente", "desvio_ltsc",
+    "prev_dem_var24h", "prev_eol_var24h", "prev_sol_var24h",
 ]
 # findings.md #107/#109 (2026-09-01): curva real de oferta de OMIE, versión
 # D-1-segura (Fase 15 de precio_da_mejor_modelo/build_dataset.py) — PROBADA Y
