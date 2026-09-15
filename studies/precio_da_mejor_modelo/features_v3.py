@@ -1,4 +1,5 @@
-"""Las diez variables de la revision de 2026-09-13, sobre el dataset de Espana.
+"""Las diez variables de la revision de 2026-09-13, mas margen_neto (2026-09-14),
+sobre el dataset de Espana.
 
 **Que son.** Una auditoria del dataset contra las variables que consume el
 modelo, mas una revision de la literatura de prevision de precio electrico
@@ -22,6 +23,15 @@ tenia delante.
     prev_eol_var24h          El modelo tenia el precio de ayer y el viento de
     prev_sol_var24h          HOY, pero no el de ayer: no podia calcular el
                              cambio. Es la mas fuerte de las diez.
+
+    margen_neto              reserve_margin_mw menos tension_fr: la holgura
+                             propia del sistema espanol, restando cuanto va
+                             a tirar Francia por la interconexion. Un GBDT
+                             no aproxima bien una diagonal con splits por
+                             eje; dandosela ya restada se ahorra ese trabajo
+                             (mismo argumento que reserve_margin_mw). Cero
+                             dato nuevo: resta de dos columnas que ya estaban
+                             las dos en SPAIN_ONLY.
 
 **Por que funcionan, y es el mismo argumento en los tres bloques.** Un GBDT
 necesita muchisimos cortes para aproximar una suma-resta de nueve variables
@@ -63,9 +73,9 @@ TZ = "Europe/Madrid"
 
 # Las dos que ya existian en el dataset y no estaban conectadas.
 YA_EXISTEN = ["reserve_margin_mw", "ratio_renovable_periodo"]
-# Las ocho que construye este modulo.
+# Las nueve que construye este modulo (las ocho del 2026-09-13 + margen_neto).
 NUEVAS = ["tension_fr", "ltsc_90d", "ltsc_365d", "ltsc_pendiente", "desvio_ltsc",
-          "prev_dem_var24h", "prev_eol_var24h", "prev_sol_var24h"]
+          "prev_dem_var24h", "prev_eol_var24h", "prev_sol_var24h", "margen_neto"]
 TODAS = YA_EXISTEN + NUEVAS
 
 
@@ -166,6 +176,11 @@ def anadir(df: pd.DataFrame, log=print) -> tuple[pd.DataFrame, list[str]]:
     else:
         df["tension_fr"] = np.nan
     df = df.drop(columns="res_fr")
+
+    # ---- 4. margen_neto (2026-09-14) --------------------------------------
+    # reserve_margin_mw - tension_fr: la holgura propia menos cuanto tira
+    # Francia. Sin dato nuevo, resta de dos columnas que ya existian.
+    df["margen_neto"] = df["reserve_margin_mw"] - df["tension_fr"]
 
     ev = df[df["period_start_utc"] >= "2025-04-01"]
     log(f"  {len(NUEVAS)} variables nuevas · cobertura en la ventana evaluable "

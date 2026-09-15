@@ -15,11 +15,11 @@ la subasta):
 
 | | MAE (EUR/MWh) |
 |---|---:|
-| Por periodo de casación | **10,10** |
-| Media del día (días completos de 15 minutos) | **6,58** |
-| Referencia ingenua (mismo periodo del día anterior) | 18,14 |
+| Por periodo de casación | **10,00** |
+| Media del día (días completos de 15 minutos) | **6,45** |
+| Referencia ingenua (mismo periodo del día anterior) | 18,25 |
 
-37.294 periodos, del 1 de abril de 2025 al 13 de septiembre de 2026. La
+37.486 periodos, del 1 de abril de 2025 al 15 de septiembre de 2026. La
 predicción periodo a periodo está en
 [`previsiones/walkforward/espana_referencia.csv`](previsiones/walkforward/espana_referencia.csv).
 
@@ -56,6 +56,20 @@ Corregido en [`dia_mercado.py`](studies/precio_da_mejor_modelo/dia_mercado.py),
 aplicado tanto al backtest como a la previsión diaria. **La fuga valía 0,69
 EUR/MWh**; medida de forma independiente en la implementación privada dio 0,68.
 Las cifras de arriba son las corregidas.
+
+**`margen_neto`, una variable más (2026-09-14).** Buscando qué más podía
+bajar el error entre las que el modelo ya tenía delante, `reserve_margin_mw`
+(la holgura del sistema español) y `tension_fr` (cuánto tira Francia por la
+interconexión) resultaron ser, juntas, más que la suma de lo que aportan
+por separado: la resta de las dos, `margen_neto`, es la única variable
+nueva de esta ronda. Mismo argumento que las diez de arriba — un árbol no
+aproxima bien una diagonal con splits por eje, dársela ya restada le ahorra
+ese trabajo — y el mismo cero riesgo de fuga, porque las dos columnas que
+resta ya estaban ahí. **El error baja de 10,10 a 10,00** (la ventana de
+evaluación también creció dos días desde la última medición, así que no es
+una comparación aislada sobre los mismos periodos como las de arriba). El
+efecto se concentra en episodios de tensión real de sistema, que no ocurren
+todos los meses — detalle en `features_v3.py`.
 
 **Las previsiones diarias anteriores al 2026-09-13** que hay en
 [`previsiones/diarias/`](previsiones/diarias/) se generaron con esa fuga: el
@@ -184,12 +198,15 @@ the Spanish day-ahead market. Forecasts are committed here (the commit time
 proves they were made ex ante) and scored automatically against the real
 price in [`resultados/`](resultados/README.md).
 
-Backtest (monthly walk-forward, ex-ante information only): **MAE 10.10 EUR/MWh
-per period, 6.58 on the daily average** (naive same-period-yesterday: 18.14),
-over 37,294 periods from 1 April 2025 to 13 September 2026. While preparing
+Backtest (monthly walk-forward, ex-ante information only): **MAE 10.00 EUR/MWh
+per period, 6.45 on the daily average** (naive same-period-yesterday: 18.25),
+over 37,486 periods from 1 April 2025 to 15 September 2026. While preparing
 this repository we found and fixed a leak: the reservoir water value was
 estimated on the full history; it is now re-estimated each month with past
-weeks only (`agua_causal.py`), which costs 0.07 EUR/MWh.
+weeks only (`agua_causal.py`), which costs 0.07 EUR/MWh. A later addition,
+`margen_neto` (the system's own reserve margin minus how hard France is
+pulling through the interconnector — both already in the model, just never
+subtracted from each other), brought it from 10.10 to 10.00.
 
 The model is a blend of a LightGBM trained jointly on Spain and France, 24
 hourly LightGBMs and 10 neural networks, fed by the grid operator's D-1

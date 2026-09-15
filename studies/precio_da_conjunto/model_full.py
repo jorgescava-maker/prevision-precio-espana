@@ -43,6 +43,10 @@ SPAIN_ONLY = [
     "reserve_margin_mw", "ratio_renovable_periodo", "tension_fr",
     "ltsc_90d", "ltsc_365d", "ltsc_pendiente", "desvio_ltsc",
     "prev_dem_var24h", "prev_eol_var24h", "prev_sol_var24h",
+    # --- 2026-09-14: margen_neto = reserve_margin_mw - tension_fr, ADOPTADA
+    # en el repo privado (findings.md #189). Cero dato nuevo, resta de dos
+    # columnas que ya estaban aquí arriba.
+    "margen_neto",
 ]
 # findings.md #107/#109 (2026-09-01): curva real de oferta de OMIE, versión
 # D-1-segura (Fase 15 de precio_da_mejor_modelo/build_dataset.py) — PROBADA Y
