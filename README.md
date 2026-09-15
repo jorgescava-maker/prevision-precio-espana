@@ -15,8 +15,8 @@ la subasta):
 
 | | MAE (EUR/MWh) |
 |---|---:|
-| Por periodo de casación | **10,00** |
-| Media del día (días completos de 15 minutos) | **6,45** |
+| Por periodo de casación | **9,98** |
+| Media del día (días completos de 15 minutos) | **6,42** |
 | Referencia ingenua (mismo periodo del día anterior) | 18,25 |
 
 37.486 periodos, del 1 de abril de 2025 al 15 de septiembre de 2026. La
@@ -70,6 +70,22 @@ evaluación también creció dos días desde la última medición, así que no e
 una comparación aislada sobre los mismos periodos como las de arriba). El
 efecto se concentra en episodios de tensión real de sistema, que no ocurren
 todos los meses — detalle en `features_v3.py`.
+
+**Meteorología multipunto (2026-09-15), la única variable con dato nuevo de
+toda esta ronda.** El resto de mejoras de más arriba son combinaciones de lo
+que el modelo ya tenía; esta no — `weather.duckdb` en este repositorio solo
+traía un punto para España (Madrid, heredado de cuando se creó el
+repositorio), y el viento en Madrid no dice nada del que ven los
+aerogeneradores en Galicia o Aragón. Se añaden 26 variables de
+viento/radiación/temperatura en 10 puntos elegidos por dónde está el recurso
+eólico y solar (A Coruña, Burgos-Soria, Zaragoza, Navarra, Tarifa, Albacete ·
+Badajoz, Sevilla-Córdoba, Ciudad Real, Murcia), descargadas en vivo de la API
+gratuita de Open-Meteo — sin clave, con caché de un día para no repetir la
+descarga en cada uno de los cortes mensuales del walk-forward. **El error baja
+de 10,00 a 9,98** — mucho más modesto que el −0,09 a −0,17 medido en la
+implementación privada equivalente, aunque las 26 variables sí correlacionan
+con el precio en el signo esperado (más sol o más viento, precio más bajo).
+Se mantiene: el criterio del proyecto es el MAE agregado, y bajó.
 
 **Las previsiones diarias anteriores al 2026-09-13** que hay en
 [`previsiones/diarias/`](previsiones/diarias/) se generaron con esa fuga: el
@@ -198,15 +214,19 @@ the Spanish day-ahead market. Forecasts are committed here (the commit time
 proves they were made ex ante) and scored automatically against the real
 price in [`resultados/`](resultados/README.md).
 
-Backtest (monthly walk-forward, ex-ante information only): **MAE 10.00 EUR/MWh
-per period, 6.45 on the daily average** (naive same-period-yesterday: 18.25),
+Backtest (monthly walk-forward, ex-ante information only): **MAE 9.98 EUR/MWh
+per period, 6.42 on the daily average** (naive same-period-yesterday: 18.25),
 over 37,486 periods from 1 April 2025 to 15 September 2026. While preparing
 this repository we found and fixed a leak: the reservoir water value was
 estimated on the full history; it is now re-estimated each month with past
-weeks only (`agua_causal.py`), which costs 0.07 EUR/MWh. A later addition,
+weeks only (`agua_causal.py`), which costs 0.07 EUR/MWh. Two later additions:
 `margen_neto` (the system's own reserve margin minus how hard France is
 pulling through the interconnector — both already in the model, just never
-subtracted from each other), brought it from 10.10 to 10.00.
+subtracted from each other) brought it from 10.10 to 10.00; multi-point
+weather (26 wind/radiation/temperature variables at 10 Spanish locations
+chosen by where the wind and solar resource actually is, not Madrid —
+the only genuinely new data in this whole round) brought it from 10.00 to
+9.98.
 
 The model is a blend of a LightGBM trained jointly on Spain and France, 24
 hourly LightGBMs and 10 neural networks, fed by the grid operator's D-1

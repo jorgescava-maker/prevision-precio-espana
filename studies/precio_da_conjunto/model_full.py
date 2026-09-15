@@ -48,6 +48,14 @@ SPAIN_ONLY = [
     # columnas que ya estaban aquí arriba.
     "margen_neto",
 ]
+
+# --- 2026-09-15: meteorología multipunto, único dato NUEVO de esta ronda.
+# 26 columnas de viento/radiación/temperatura en 10 puntos de España elegidos
+# por dónde está el recurso eólico/solar, no en Madrid (ver
+# `precio_da_mejor_modelo/features_v3.py::_meteo_multipunto`). Import
+# separado en vez de una lista literal para no duplicar los 26 nombres aquí.
+from studies.precio_da_mejor_modelo.features_v3 import METEO_MP_COLS as _METEO_MP_COLS
+SPAIN_ONLY = SPAIN_ONLY + _METEO_MP_COLS
 # findings.md #107/#109 (2026-09-01): curva real de oferta de OMIE, versión
 # D-1-segura (Fase 15 de precio_da_mejor_modelo/build_dataset.py) — PROBADA Y
 # DESCARTADA contra el campeón REAL (pooled+ensemble+hurdle), no un proxy

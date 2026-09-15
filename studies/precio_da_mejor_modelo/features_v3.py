@@ -33,6 +33,18 @@ tenia delante.
                              dato nuevo: resta de dos columnas que ya estaban
                              las dos en SPAIN_ONLY.
 
+**Meteorologia MULTIPUNTO (2026-09-15), fuente nueva.** El unico dato de esta
+revision que SI es nuevo: 26 variables de viento/radiacion/temperatura en 10
+puntos de Espana elegidos por donde esta el recurso eolico/solar (A Coruna,
+Burgos-Soria, Zaragoza, Navarra, Tarifa, Albacete · Badajoz, Sevilla-Cordoba,
+Ciudad Real, Murcia), no en un punto unico. `weather.duckdb` en este
+repositorio solo trae un punto para Espana (Madrid), y el viento en Madrid no
+dice nada del que ven las turbinas en Galicia o Aragon. Se consulta en vivo la
+API gratuita de Open-Meteo (`previous-runs`, `lead=2`, sin clave), la misma
+receta que ya funcionaba en el modelo privado equivalente. Si se le dan al
+GBDT las variables de los 10 puntos, aprende el solo cuales pesan — mas barato
+que construir una ponderacion por capacidad instalada que no tenemos.
+
 **Por que funcionan, y es el mismo argumento en los tres bloques.** Un GBDT
 necesita muchisimos cortes para aproximar una suma-resta de nueve variables
 continuas, o una diferencia entre dos columnas. Dandoselas hechas se le ahorra
@@ -58,11 +70,14 @@ Uso:
 
 from __future__ import annotations
 
+import time
+from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
 import numpy as np
 import pandas as pd
+import requests
 
 from etl.common import logging_config  # noqa: F401
 
@@ -73,10 +88,107 @@ TZ = "Europe/Madrid"
 
 # Las dos que ya existian en el dataset y no estaban conectadas.
 YA_EXISTEN = ["reserve_margin_mw", "ratio_renovable_periodo"]
-# Las nueve que construye este modulo (las ocho del 2026-09-13 + margen_neto).
+# Las diez que construye este modulo (las ocho del 2026-09-13 + margen_neto +
+# meteorologia multipunto, que en realidad son 26 columnas).
+METEO_MP_API = "https://previous-runs-api.open-meteo.com/v1/forecast"
+METEO_MP_MODELO = "ecmwf_ifs025"
+METEO_MP_LEAD = 2                    # el unico inequivocamente D-1 seguro
+METEO_MP_DESDE = "2024-03-06"        # inicio real de la radiacion solar en la fuente
+METEO_MP_PUNTOS = {
+    "eo_coruna":   (43.37, -8.40),
+    "eo_burgos":   (41.77, -2.47),
+    "eo_zaragoza": (41.65, -0.89),
+    "eo_navarra":  (42.46, -2.45),
+    "eo_tarifa":   (36.14, -5.74),
+    "eo_albacete": (38.99, -1.86),
+    "so_badajoz":   (38.88, -6.97),
+    "so_sevilla":   (37.60, -5.30),
+    "so_ciudadreal": (38.99, -3.93),
+    "so_murcia":    (38.00, -1.13),
+}
+METEO_MP_VARS = {"temperature_2m": "temp", "wind_speed_100m": "v100",
+                  "shortwave_radiation": "rad", "direct_radiation": "raddir"}
 NUEVAS = ["tension_fr", "ltsc_90d", "ltsc_365d", "ltsc_pendiente", "desvio_ltsc",
           "prev_dem_var24h", "prev_eol_var24h", "prev_sol_var24h", "margen_neto"]
+METEO_MP_COLS = ([f"v100_{p}_cubo" for p in METEO_MP_PUNTOS if p.startswith("eo_")]
+                  + [f"v100_{p}" for p in METEO_MP_PUNTOS if p.startswith("eo_")]
+                  + [f"rad_{p}" for p in METEO_MP_PUNTOS if p.startswith("so_")]
+                  + ["eo_cubo_medio", "eo_v100_medio", "eo_v100_disp", "eo_v100_max",
+                     "eo_v100_min", "so_rad_media", "so_rad_disp", "so_directa_frac",
+                     "temp_media", "temp_disp"])
+NUEVAS = NUEVAS + METEO_MP_COLS
 TODAS = YA_EXISTEN + NUEVAS
+
+
+METEO_MP_CACHE = OUTPUT_DIR / "meteo_multipunto_cache.parquet"
+
+
+def _meteo_multipunto(log=print) -> pd.DataFrame:
+    """Descarga (Open-Meteo, sin clave) y construye las 26 columnas de los 10
+    puntos, con cache en disco por DÍA. `anadir()` se llama muchas veces en
+    la misma corrida (una por cada mes de corte del walk-forward causal, más
+    la predicción en vivo) — sin cache, cada llamada repite la descarga del
+    histórico entero (2024-03 -> ayer) y la API gratuita empieza a devolver
+    429 (verificado en vivo: falló a los 18 de 31 meses). El cache se
+    invalida solo cuando cambia el día (`hasta` avanza), así que dentro de
+    una misma corrida siempre es la MISMA descarga para todos los cortes —
+    coherente con que el walk-forward causal ya asume "info hasta ayer"."""
+    hasta = (date.today() - timedelta(days=1)).isoformat()
+    if METEO_MP_CACHE.exists():
+        cache = pd.read_parquet(METEO_MP_CACHE)
+        if len(cache) and str(cache["_hora"].max().date()) >= hasta:
+            return cache
+    suf = f"_previous_day{METEO_MP_LEAD}"
+    hourly = ",".join(f"{v}{suf}" for v in METEO_MP_VARS)
+    sesion = requests.Session()
+    trozos = []
+    for nombre, (lat, lon) in METEO_MP_PUNTOS.items():
+        for intento in range(1, 4):
+            try:
+                r = sesion.get(METEO_MP_API, params={
+                    "latitude": lat, "longitude": lon,
+                    "start_date": METEO_MP_DESDE, "end_date": hasta,
+                    "models": METEO_MP_MODELO, "hourly": hourly, "timezone": "UTC",
+                }, timeout=120)
+                r.raise_for_status()
+                p = r.json()
+                if p.get("error"):
+                    raise ValueError(p.get("reason"))
+                break
+            except Exception as exc:
+                if intento == 3:
+                    raise
+                log(f"    reintento {intento} en meteo {nombre}: {exc}")
+                time.sleep(3 * intento)
+        h = p["hourly"]
+        d = pd.DataFrame({"_hora": pd.to_datetime(h["time"])})
+        for v, corto in METEO_MP_VARS.items():
+            d[f"{corto}_{nombre}"] = h[f"{v}{suf}"]
+        trozos.append(d.set_index("_hora"))
+        time.sleep(0.3)
+
+    w = pd.concat(trozos, axis=1).reset_index()
+    eo = [c for c in w.columns if c.startswith("v100_eo_")]
+    so = [c for c in w.columns if c.startswith("rad_so_")]
+    dirs = [c for c in w.columns if c.startswith("raddir_so_")]
+    for c in eo:
+        w[c + "_cubo"] = (w[c] / 100.0) ** 3
+    w["eo_cubo_medio"] = w[[c + "_cubo" for c in eo]].mean(axis=1)
+    w["eo_v100_medio"] = w[eo].mean(axis=1)
+    w["eo_v100_disp"] = w[eo].std(axis=1)
+    w["eo_v100_max"] = w[eo].max(axis=1)
+    w["eo_v100_min"] = w[eo].min(axis=1)
+    w["so_rad_media"] = w[so].mean(axis=1)
+    w["so_rad_disp"] = w[so].std(axis=1)
+    w["so_directa_frac"] = w[dirs].sum(axis=1) / (w[so].sum(axis=1) + 1.0)
+    temps = [c for c in w.columns if c.startswith("temp_")]
+    w["temp_media"] = w[temps].mean(axis=1)
+    w["temp_disp"] = w[temps].std(axis=1)
+    log(f"  meteorologia multipunto: {len(w):,} horas descargadas ({METEO_MP_DESDE} -> {hasta})")
+    out = w[["_hora"] + METEO_MP_COLS]
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    out.to_parquet(METEO_MP_CACHE, index=False)
+    return out
 
 
 def _local(s: pd.Series) -> pd.Series:
@@ -181,6 +293,14 @@ def anadir(df: pd.DataFrame, log=print) -> tuple[pd.DataFrame, list[str]]:
     # reserve_margin_mw - tension_fr: la holgura propia menos cuanto tira
     # Francia. Sin dato nuevo, resta de dos columnas que ya existian.
     df["margen_neto"] = df["reserve_margin_mw"] - df["tension_fr"]
+
+    # ---- 5. meteorologia multipunto (2026-09-15) --------------------------
+    # 10 puntos donde esta el recurso eolico/solar, no Madrid. Unico dato
+    # NUEVO de todo este modulo (el resto son transformaciones de lo que ya
+    # habia). Se une por la hora en punto, igual que la tension francesa.
+    meteo = _meteo_multipunto(log)
+    df["_h"] = df["period_start_utc"].dt.floor("h")
+    df = df.merge(meteo.rename(columns={"_hora": "_h"}), on="_h", how="left").drop(columns="_h")
 
     ev = df[df["period_start_utc"] >= "2025-04-01"]
     log(f"  {len(NUEVAS)} variables nuevas · cobertura en la ventana evaluable "
