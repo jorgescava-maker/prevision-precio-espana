@@ -3,9 +3,9 @@
 Se actualiza sola cada día. Cada previsión se publica antes del cierre de la
 subasta (12:00, hora peninsular) y se evalúa cuando OMIE publica el precio real.
 
-- Días evaluados: **15** (2026-09-12 → 2026-09-27)
-- MAE por periodo, todo el histórico publicado: **18,25 EUR/MWh** (ingenua del día anterior: 25,49)
-- MAE de la media diaria: **6,60 EUR/MWh**
+- Días evaluados: **16** (2026-09-12 → 2026-09-29)
+- MAE por periodo, todo el histórico publicado: **19,01 EUR/MWh** (ingenua del día anterior: 28,80)
+- MAE de la media diaria: **7,11 EUR/MWh**
 
 ## Por día
 
@@ -28,6 +28,7 @@ equivoca más, con todos los días evaluados.
 
 | Día | Periodos | MAE | Ingenua | Media real | Media prevista |
 |---|---:|---:|---:|---:|---:|
+| 2026-09-29 | 96 | 30,48 | 78,45 | 130,10 | 144,95 |
 | 2026-09-27 | 96 | 20,15 | 19,38 | 113,67 | 116,35 |
 | 2026-09-26 | 96 | 19,54 | 31,02 | 130,68 | 120,93 |
 | 2026-09-25 | 96 | 20,00 | 9,34 | 161,38 | 154,98 |
